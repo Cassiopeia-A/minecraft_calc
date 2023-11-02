@@ -10,9 +10,10 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog
 class Calculator(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('venv/minecraft.ui', self)
+        uic.loadUi('minecraft.ui', self)
         self.req_list = {}
         self.def_icon = self.button_item_1.icon()
+        self.images_list = [''] * 7
 
         self.con = sqlite3.connect("mine_calc.sql")
         self.cur = self.con.cursor()
@@ -29,6 +30,13 @@ class Calculator(QMainWindow):
         self.button_item_5.hide()
         self.button_item_6.hide()
         self.button_item_7.hide()
+        self.item_count_1.hide()
+        self.item_count_2.hide()
+        self.item_count_3.hide()
+        self.item_count_4.hide()
+        self.item_count_5.hide()
+        self.item_count_6.hide()
+        self.item_count_7.hide()
 
         self.add_item.clicked.connect(self.to_page_2)
         self.back_btn.clicked.connect(self.to_page_1)
@@ -36,6 +44,7 @@ class Calculator(QMainWindow):
         self.reset_req_btn.clicked.connect(self.clear_req)
         self.add_req_item_craft.clicked.connect(self.add_req)
         self.add_craft.clicked.connect(self.add_craft_f)
+        self.calculate.clicked.connect(self.count)
 
         self.button_item_1.clicked.connect(self.choose_item_1)
         self.button_item_2.clicked.connect(self.choose_item_2)
@@ -122,8 +131,8 @@ class Calculator(QMainWindow):
         for elem in self.req_list.keys():
             id_item = self.cur.execute(f'''SELECT id FROM resourses WHERE name = "{elem}"''').fetchall()[0][0]
             lst1.append(str(id_item))
-        req_id = ' ,'.join(lst1)
-        req_count = ' ,'.join(self.req_list.values())
+        req_id = ', '.join(lst1)
+        req_count = ', '.join(self.req_list.values())
         if item in craft_list:
             self.cur.execute(f'''UPDATE crafts SET
             result_item_count = {res_count},
@@ -144,6 +153,27 @@ class Calculator(QMainWindow):
             self.con.commit()
             self.statusBar().showMessage(f'Успешно добавлен крафт для предмета: {item}')
 
+    def count(self):
+        res_dict = dict()
+        count = [self.item_count_1.value(), self.item_count_2.value(), self.item_count_3.value(),
+                 self.item_count_4.value(), self.item_count_5.value(), self.item_count_6.value(),
+                 self.item_count_7.value()]
+        for i, elem in enumerate(self.images_list):
+            if elem:
+                keys = self.cur.execute(f'''SELECT requirement_items_id FROM crafts
+                WHERE result_item_id =
+                (SELECT id FROM resourses WHERE image = "{elem}")''').fetchall()[0][0].split(', ')
+                values = self.cur.execute(f'''SELECT requirement_items_count FROM crafts
+                WHERE result_item_id =
+                (SELECT id FROM resourses WHERE image = "{elem}")''').fetchall()[0][0].split(', ')
+                for index, k in enumerate(keys):
+                    key = self.cur.execute(f'''SELECT name FROM resourses WHERE id = "{k}"''').fetchall()[0][0]
+                    if key not in res_dict.keys():
+                        res_dict[key] = int(values[index]) * count[i]
+                    else:
+                        res_dict[key] = res_dict.get(key) + int(values[index]) * count[i]
+        print(res_dict)
+
     def choose_item_1(self):
         items = self.get_items_with_craft()
 
@@ -154,6 +184,8 @@ class Calculator(QMainWindow):
             self.button_item_1.setIcon(QIcon(f'images/{path[0][0]}'))
             self.sender().setIconSize(QSize(90, 90))
             self.button_item_2.show()
+            self.item_count_1.show()
+            self.images_list[0] = f'{path[0][0]}'
 
     def choose_item_2(self):
         items = self.get_items_with_craft()
@@ -165,6 +197,8 @@ class Calculator(QMainWindow):
             self.button_item_2.setIcon(QIcon(f'images/{path[0][0]}'))
             self.sender().setIconSize(QSize(90, 90))
             self.button_item_3.show()
+            self.item_count_2.show()
+            self.images_list[1] = f'{path[0][0]}'
             if self.button_item_4.isHidden():
                 self.close_1.show()
 
@@ -179,6 +213,8 @@ class Calculator(QMainWindow):
             self.sender().setIconSize(QSize(90, 90))
             self.button_item_4.show()
             self.close_1.hide()
+            self.item_count_3.show()
+            self.images_list[2] = f'{path[0][0]}'
             if self.button_item_5.isHidden():
                 self.close_2.show()
 
@@ -193,6 +229,8 @@ class Calculator(QMainWindow):
             self.sender().setIconSize(QSize(90, 90))
             self.button_item_5.show()
             self.close_2.hide()
+            self.item_count_4.show()
+            self.images_list[3] = f'{path[0][0]}'
             if self.button_item_6.isHidden():
                 self.close_3.show()
 
@@ -207,6 +245,8 @@ class Calculator(QMainWindow):
             self.sender().setIconSize(QSize(90, 90))
             self.button_item_6.show()
             self.close_3.hide()
+            self.item_count_5.show()
+            self.images_list[4] = f'{path[0][0]}'
             if self.button_item_7.isHidden():
                 self.close_4.show()
 
@@ -222,6 +262,8 @@ class Calculator(QMainWindow):
             self.button_item_7.show()
             self.close_4.hide()
             self.close_5.show()
+            self.item_count_6.show()
+            self.images_list[5] = f'{path[0][0]}'
 
     def choose_item_7(self):
         items = self.get_items_with_craft()
@@ -234,40 +276,54 @@ class Calculator(QMainWindow):
             self.sender().setIconSize(QSize(90, 90))
             self.close_5.hide()
             self.close_6.show()
+            self.item_count_7.show()
+            self.images_list[6] = f'{path[0][0]}'
 
     def close_f_1(self):
         self.button_item_2.setIcon(self.def_icon)
         self.button_item_3.hide()
         self.close_1.hide()
+        self.item_count_2.hide()
+        self.images_list[1] = ''
 
     def close_f_2(self):
         self.button_item_3.setIcon(self.def_icon)
         self.button_item_4.hide()
         self.close_2.hide()
         self.close_1.show()
+        self.item_count_3.hide()
+        self.images_list[2] = ''
 
     def close_f_3(self):
         self.button_item_4.setIcon(self.def_icon)
         self.button_item_5.hide()
         self.close_3.hide()
         self.close_2.show()
+        self.item_count_4.hide()
+        self.images_list[3] = ''
 
     def close_f_4(self):
         self.button_item_5.setIcon(self.def_icon)
         self.button_item_6.hide()
         self.close_4.hide()
         self.close_3.show()
+        self.item_count_5.hide()
+        self.images_list[4] = ''
 
     def close_f_5(self):
         self.button_item_6.setIcon(self.def_icon)
         self.button_item_7.hide()
         self.close_5.hide()
         self.close_4.show()
+        self.item_count_6.hide()
+        self.images_list[5] = ''
 
     def close_f_6(self):
         self.button_item_7.setIcon(self.def_icon)
         self.close_6.hide()
         self.close_5.show()
+        self.item_count_7.hide()
+        self.images_list[6] = ''
 
     def closeEvent(self, event):
         self.con.close()
