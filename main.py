@@ -211,7 +211,6 @@ class Calculator(QMainWindow):
                         count_items.append(int(values[index]) * count_items[i])
                         img = self.cur.execute(f'''SELECT image FROM resourses WHERE name = "{key}"''').fetchall()[0][0]
                         items.append(img)
-                        print(f'{key}, {elem}')
                 name = self.cur.execute(f'''SELECT name FROM resourses WHERE image = "{elem}"''').fetchall()[0][0]
                 self.craft[name] = req
         self.craft.clear()
