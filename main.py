@@ -15,6 +15,7 @@ class Calculator(QMainWindow):
         self.def_icon = self.button_item_1.icon()
         self.images_list = [''] * 7
         self.res_items = []
+        self.craft = dict()
         self.spin_boxes = [self.item_count_1, self.item_count_2, self.item_count_3, self.item_count_4,
                            self.item_count_5, self.item_count_6, self.item_count_7]
         self.result_btns = [self.item_1, self.item_2, self.item_3, self.item_4, self.item_5, self.item_6, self.item_7,
@@ -37,6 +38,7 @@ class Calculator(QMainWindow):
         self.button_item_7.hide()
         for spinbox in self.spin_boxes:
             spinbox.hide()
+        self.crafts.hide()
 
         self.add_item.clicked.connect(self.to_page_2)
         self.back_btn.clicked.connect(self.to_page_1)
@@ -196,8 +198,10 @@ class Calculator(QMainWindow):
                 values = self.cur.execute(f'''SELECT requirement_items_count FROM crafts
                 WHERE result_item_id =
                 (SELECT id FROM resourses WHERE image = "{elem}")''').fetchall()[0][0].split(', ')
+                req = []
                 for index, k in enumerate(keys):
                     key = self.cur.execute(f'''SELECT name FROM resourses WHERE id = "{k}"''').fetchall()[0][0]
+                    req.append(key)
                     if key not in self.get_items_with_craft():
                         if key not in res_dict.keys():
                             res_dict[key] = int(values[index]) * count_items[i]
@@ -207,6 +211,10 @@ class Calculator(QMainWindow):
                         count_items.append(int(values[index]) * count_items[i])
                         img = self.cur.execute(f'''SELECT image FROM resourses WHERE name = "{key}"''').fetchall()[0][0]
                         items.append(img)
+                        print(f'{key}, {elem}')
+                name = self.cur.execute(f'''SELECT name FROM resourses WHERE image = "{elem}"''').fetchall()[0][0]
+                self.craft[name] = req
+        self.craft.clear()
 
         result = 0
         for j, r in enumerate(self.result_btns):
@@ -221,6 +229,7 @@ class Calculator(QMainWindow):
             self.count_labels[result].setText(f'x {int(count)}')
             self.res_items.append(item)
             result += 1
+        self.crafts.show()
 
     def info(self):
         msg = QMessageBox()
