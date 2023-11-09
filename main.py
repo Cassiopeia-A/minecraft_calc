@@ -16,6 +16,7 @@ class Calculator(QMainWindow):
         self.images_list = [''] * 7
         self.res_items = []
         self.craft = dict()
+        self.types = []
         self.spin_boxes = [self.item_count_1, self.item_count_2, self.item_count_3, self.item_count_4,
                            self.item_count_5, self.item_count_6, self.item_count_7]
         self.result_btns = [self.item_1, self.item_2, self.item_3, self.item_4, self.item_5, self.item_6, self.item_7,
@@ -47,6 +48,8 @@ class Calculator(QMainWindow):
         self.add_req_item_craft.clicked.connect(self.add_req)
         self.add_craft.clicked.connect(self.add_craft_f)
         self.calculate.clicked.connect(self.count)
+        self.add_type.clicked.connect(self.add_type_f)
+        self.clear_types.clicked.connect(self.clear_types_f)
 
         self.button_item_1.clicked.connect(self.choose_item)
         self.button_item_2.clicked.connect(self.choose_item)
@@ -89,6 +92,9 @@ class Calculator(QMainWindow):
             res.hide()
             self.count_labels[index].hide()
 
+        with open('image_types.txt', mode='r', encoding="utf8") as f:
+            self.image_type.addItems(f.readline().split(' '))
+
     def get_items(self):
         items = self.cur.execute('''SELECT name FROM resourses''').fetchall()
         list_items = []
@@ -117,7 +123,9 @@ class Calculator(QMainWindow):
     def add_item_wo_craft_f(self):
         item = self.item_wo_craft_name.text().lower()
         list_items = self.get_items()
-        image = self.image_name.text()
+        name = self.image_name.text()
+        type = self.image_type.currentText()
+        image = name + type
 
         if item not in list_items:
             if item != '' or image != '':
@@ -239,6 +247,16 @@ class Calculator(QMainWindow):
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec()
 
+    def add_type_f(self):
+        type = f'.{self.type_file.text()}'
+        self.types.append(type)
+        self.image_type.clear()
+        self.image_type.addItems(self.types)
+
+    def clear_types_f(self):
+        self.image_type.clear()
+        self.types.clear()
+
     def choose_item(self):
         items = self.get_items_with_craft()
 
@@ -271,6 +289,8 @@ class Calculator(QMainWindow):
         self.images_list[i] = ''
 
     def closeEvent(self, event):
+        with open('image_types.txt', mode='w', encoding="utf8") as f:
+            f.write(' '.join(self.types))
         self.con.close()
 
 
