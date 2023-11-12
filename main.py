@@ -4,7 +4,25 @@ import sqlite3
 from PyQt5 import uic
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
-from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QButtonGroup, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QButtonGroup, QMessageBox, QDialog
+
+
+class Dialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Цепочка')
+        uic.loadUi('way.ui', self)
+
+    def accept(self):
+        print(1)
+        self.destroy()
+
+    def reject(self):
+        print(2)
+        self.destroy()
+
+    def closeEvent(self, event):
+        self.destroy()
 
 
 class Calculator(QMainWindow):
@@ -17,6 +35,7 @@ class Calculator(QMainWindow):
         self.res_items = []
         self.craft = dict()
         self.types = []
+        self.items_way = dict()
         self.spin_boxes = [self.item_count_1, self.item_count_2, self.item_count_3, self.item_count_4,
                            self.item_count_5, self.item_count_6, self.item_count_7]
         self.result_btns = [self.item_1, self.item_2, self.item_3, self.item_4, self.item_5, self.item_6, self.item_7,
@@ -50,6 +69,7 @@ class Calculator(QMainWindow):
         self.calculate.clicked.connect(self.count)
         self.add_type.clicked.connect(self.add_type_f)
         self.clear_types.clicked.connect(self.clear_types_f)
+        self.crafts.clicked.connect(self.createdialog)
 
         self.button_item_1.clicked.connect(self.choose_item)
         self.button_item_2.clicked.connect(self.choose_item)
@@ -219,9 +239,17 @@ class Calculator(QMainWindow):
                         count_items.append(int(values[index]) * count_items[i])
                         img = self.cur.execute(f'''SELECT image FROM resourses WHERE name = "{key}"''').fetchall()[0][0]
                         items.append(img)
+                    res_item = (self.cur.execute(f'''SELECT name FROM resourses
+                    WHERE image = "{elem}"''').fetchall()[0][0], i)
+                    if res_item in self.items_way.keys():
+                        self.items_way[res_item].append(key)
+                    else:
+                        self.items_way[res_item] = [key]
+                    print(elem, key, index, i)
                 name = self.cur.execute(f'''SELECT name FROM resourses WHERE image = "{elem}"''').fetchall()[0][0]
                 self.craft[name] = req
         self.craft.clear()
+        print(self.items_way)
 
         result = 0
         for j, r in enumerate(self.result_btns):
@@ -256,6 +284,13 @@ class Calculator(QMainWindow):
     def clear_types_f(self):
         self.image_type.clear()
         self.types.clear()
+
+    def createdialog(self):
+        self.dialog = Dialog()
+        self.dialog.show()
+
+    def stopdialog(self):
+        self.dialog.destroy()
 
     def choose_item(self):
         items = self.get_items_with_craft()
