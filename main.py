@@ -102,20 +102,22 @@ class Search(QDialog):
         if resp.status_code == 200:
             self.main_window.statusBar().showMessage('Подключение успешно')
 
-        soup = BeautifulSoup(resp.content, "html.parser")
+            soup = BeautifulSoup(resp.content, "html.parser")
 
-        info = soup.find(class_='image')
+            info = soup.find(class_='image')
 
-        img_info = info.get('href')
-        p = requests.get(img_info)
+            img_info = info.get('href')
+            p = requests.get(img_info)
 
-        img = open(f"images/{query}.png", "wb")
-        img.write(p.content)
-        img.close()
+            img = open(f"images/{query}.png", "wb")
+            img.write(p.content)
+            img.close()
 
-        self.image_1.setIcon(QIcon(f'images/{query}.png'))
-        self.image_1.setIconSize(QSize(181, 181))
-        self.img = query + '.png'
+            self.image_1.setIcon(QIcon(f'images/{query}.png'))
+            self.image_1.setIconSize(QSize(181, 181))
+            self.img = query + '.png'
+        else:
+            self.main_window.statusBar().showMessage('Не найдено')
 
     def add_image(self):
         self.main_window.image.setText(self.img)
