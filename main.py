@@ -1,17 +1,40 @@
 import sys
 import sqlite3
+import requests
+from bs4 import BeautifulSoup
 
 from PyQt5 import uic
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
-from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QButtonGroup, QMessageBox, QDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow, QInputDialog, QButtonGroup, QMessageBox, QDialog, QFileDialog
 
 
 class Dialog(QDialog):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super(Dialog, self).__init__()
         self.setWindowTitle('Цепочка')
         uic.loadUi('way.ui', self)
+
+        way = parent.items_way
+        result = []
+        minumum = 1
+        for _ in range(20):
+            result.append([])
+        for elem in way.keys():
+            item = elem[0]
+            i = elem[1]
+            if i < 7:
+                result[0].append(item)
+                for j in way[elem]:
+                    result[1].append(j)
+                    print(j)
+                    if j in parent.get_items_with_craft():
+                        minumum += 1
+                        for req in parent.get_req_items(j):
+                            result[minumum].append(req)
+                    minumum = 1
+
+        print(result)
 
     def accept(self):
         print(1)
@@ -19,6 +42,83 @@ class Dialog(QDialog):
 
     def reject(self):
         print(2)
+        self.destroy()
+
+    def closeEvent(self, event):
+        self.destroy()
+
+
+class Search(QDialog):
+    def __init__(self, parent=None):
+        super(Search, self).__init__()
+        self.setWindowTitle('Поиск')
+        uic.loadUi('image.ui', self)
+        self.pages.setCurrentIndex(0)
+        self.img = ''
+
+        self.name_image.clicked.connect(self.to_page_2)
+
+        self.search_image.clicked.connect(self.to_page_1)
+
+        self.search_return.clicked.connect(self.to_page_0)
+        self.name_return.clicked.connect(self.to_page_0)
+
+        self.search_btn.clicked.connect(self.search_f)
+
+        self.select_image.clicked.connect(self.select_image_f)
+
+        self.name_add_image.clicked.connect(self.name_image_f)
+
+        self.search_add_image.clicked.connect(self.add_image)
+
+        self.main_window = parent
+
+    def to_page_0(self):
+        self.pages.setCurrentIndex(0)
+
+    def to_page_1(self):
+        self.pages.setCurrentIndex(1)
+
+    def to_page_2(self):
+        self.pages.setCurrentIndex(2)
+
+    def select_image_f(self):
+        image = QFileDialog.getOpenFileName(self, 'Open File', './', "Image (*.png *.jpg *jpeg *.webp)")
+        self.img = image[0].split('/')[-1]
+        self.main_window.image.setText(self.img)
+        self.destroy()
+
+    def name_image_f(self):
+        self.img = self.image_name.text()
+        self.main_window.image.setText(self.img)
+        self.destroy()
+
+    def search_f(self):
+        query = self.search_text.text().lower()
+        query = query.replace(' ', '_')
+        url = f"https://minecraft.fandom.com/ru/wiki/{query}"
+        resp = requests.get(url)
+
+        if resp.status_code == 200:
+            self.main_window.statusBar().showMessage('Подключение успешно')
+
+        soup = BeautifulSoup(resp.content, "html.parser")
+
+        info = soup.find(class_='image')
+
+        img_info = info.get('href')
+        p = requests.get(img_info)
+
+        img = open(f"images/{query}.png", "wb")
+        img.write(p.content)
+        img.close()
+
+        self.image_1.setIcon(QIcon(f'images/{query}.png'))
+        self.image_1.setIconSize(QSize(181, 181))
+        self.img = query + '.png'
+
+    def add_image(self):
+        self.main_window.image.setText(self.img)
         self.destroy()
 
     def closeEvent(self, event):
@@ -67,9 +167,8 @@ class Calculator(QMainWindow):
         self.add_req_item_craft.clicked.connect(self.add_req)
         self.add_craft.clicked.connect(self.add_craft_f)
         self.calculate.clicked.connect(self.count)
-        self.add_type.clicked.connect(self.add_type_f)
-        self.clear_types.clicked.connect(self.clear_types_f)
         self.crafts.clicked.connect(self.createdialog)
+        self.search_btn.clicked.connect(self.creartesearch)
 
         self.button_item_1.clicked.connect(self.choose_item)
         self.button_item_2.clicked.connect(self.choose_item)
@@ -112,9 +211,6 @@ class Calculator(QMainWindow):
             res.hide()
             self.count_labels[index].hide()
 
-        with open('image_types.txt', mode='r', encoding="utf8") as f:
-            self.image_type.addItems(f.readline().split(' '))
-
     def get_items(self):
         items = self.cur.execute('''SELECT name FROM resourses''').fetchall()
         list_items = []
@@ -130,6 +226,15 @@ class Calculator(QMainWindow):
             list_items.append(elem[0])
         return list_items
 
+    def get_req_items(self, item):
+        items_id = self.cur.execute(f'''SELECT requirement_items_id FROM crafts
+        WHERE result_item_id = (SELECT id FROM resourses WHERE name = "{item}")''').fetchall()[0][0].split(', ')
+        res = []
+        for elem in items_id:
+            name = self.cur.execute(f'''SELECT name FROM resourses WHERE id = "{elem}"''').fetchall()[0][0]
+            res.append(name)
+        return res
+
     def to_page_1(self):
         self.pages.setCurrentIndex(0)
         self.append_req_item.clear()
@@ -143,9 +248,7 @@ class Calculator(QMainWindow):
     def add_item_wo_craft_f(self):
         item = self.item_wo_craft_name.text().lower()
         list_items = self.get_items()
-        name = self.image_name.text()
-        type = self.image_type.currentText()
-        image = name + type
+        image = self.image.text()
 
         if item not in list_items:
             if item != '' or image != '':
@@ -214,6 +317,7 @@ class Calculator(QMainWindow):
     def count(self):
         res_dict = dict()
         self.res_items.clear()
+        self.items_way.clear()
         count_items = [self.item_count_1.value(), self.item_count_2.value(), self.item_count_3.value(),
                        self.item_count_4.value(), self.item_count_5.value(), self.item_count_6.value(),
                        self.item_count_7.value()]
@@ -245,12 +349,10 @@ class Calculator(QMainWindow):
                         self.items_way[res_item].append(key)
                     else:
                         self.items_way[res_item] = [key]
-                    print(elem, key, index, i)
                 name = self.cur.execute(f'''SELECT name FROM resourses WHERE image = "{elem}"''').fetchall()[0][0]
                 self.craft[name] = req
         self.craft.clear()
-        print(self.items_way)
-
+        
         result = 0
         for j, r in enumerate(self.result_btns):
             r.hide()
@@ -264,7 +366,6 @@ class Calculator(QMainWindow):
             self.count_labels[result].setText(f'x {int(count)}')
             self.res_items.append(item)
             result += 1
-        self.crafts.show()
 
     def info(self):
         msg = QMessageBox()
@@ -275,22 +376,19 @@ class Calculator(QMainWindow):
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec()
 
-    def add_type_f(self):
-        type = f'.{self.type_file.text()}'
-        self.types.append(type)
-        self.image_type.clear()
-        self.image_type.addItems(self.types)
-
-    def clear_types_f(self):
-        self.image_type.clear()
-        self.types.clear()
-
     def createdialog(self):
-        self.dialog = Dialog()
+        self.dialog = Dialog(parent=self)
         self.dialog.show()
 
     def stopdialog(self):
         self.dialog.destroy()
+
+    def creartesearch(self):
+        self.search = Search(parent=self)
+        self.search.show()
+
+    def stopsearch(self):
+        self.search.destroy()
 
     def choose_item(self):
         items = self.get_items_with_craft()
@@ -324,8 +422,8 @@ class Calculator(QMainWindow):
         self.images_list[i] = ''
 
     def closeEvent(self, event):
-        with open('image_types.txt', mode='w', encoding="utf8") as f:
-            f.write(' '.join(self.types))
+        self.stopdialog()
+        self.stopsearch()
         self.con.close()
 
 
